@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Skyler & Natasha — Honeymoon Fund</title>
+  <meta name="description" content="Help Skyler & Natasha make their honeymoon unforgettable. Choose an experience to fund and leave a note!" />
+  <style>
+    :root{
+      --bg:#f7f7fb; --card:#ffffff; --ink:#1f2a37; --muted:#6b7280; --accent:#2563eb; --soft:#e5edff; --ring:#cdd8ff;
+      --radius:14px; --shadow:0 10px 25px rgba(31,42,55,0.08);
+    }
+    *{box-sizing:border-box}
+    body{margin:0; font-family:system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif; color:var(--ink); background:var(--bg); line-height:1.5}
+    a{color:var(--accent); text-decoration:underline}
+    .wrap{max-width:1000px; margin:0 auto; padding:24px}
+    header{
+      border-radius:calc(var(--radius) + 6px);
+      background:linear-gradient(135deg, #eef2ff, #e0f2fe);
+      padding:40px 24px;
+      display:grid; gap:18px; align-items:center;
+      box-shadow:var(--shadow);
+    }
+    header .grid{display:grid; gap:20px}
+    @media(min-width:860px){ header .grid{grid-template-columns: 1.2fr 1fr} }
+    .hero-title{font-size:2rem; margin:0 0 6px}
+    .sub{color:var(--muted); margin:0}
+    .card{background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px}
+    .grid-3{display:grid; gap:16px}
+    @media(min-width:860px){ .grid-3{grid-template-columns: repeat(3, 1fr)} }
+    .tile{border:1px solid #eef; padding:18px; border-radius:12px}
+    .tile h4{margin:0 0 8px; font-size:1.05rem}
+    .price{font-weight:600}
+    .small{font-size:0.95rem; color:var(--muted)}
+    .cta-row{display:flex; flex-wrap:wrap; gap:10px; margin-top:6px}
+    .btn{
+      display:inline-block; text-decoration:none; background:var(--accent); color:white;
+      padding:10px 14px; border-radius:10px; font-weight:600; box-shadow:0 6px 16px rgba(37,99,235,.25)
+    }
+    .btn.alt{background:#111827}
+    .progress{height:12px; background:#e8ecf8; border-radius:999px; overflow:hidden; position:relative}
+    .progress > div{height:100%; background:linear-gradient(90deg, #60a5fa, #2563eb); width:0%}
+    .stat{display:flex; justify-content:space-between; align-items:center; gap:12px}
+    .ring{border:1px dashed var(--ring); border-radius:12px; padding:14px; background:var(--soft)}
+    .list{display:grid; gap:12px}
+    footer{color:var(--muted); text-align:center; padding:30px 0}
+    img.hero{
+      width:100%; border-radius:16px; object-fit:cover; max-height:340px; box-shadow:var(--shadow)
+    }
+    .note{font-size:0.95rem}
+    .pill{display:inline-block; padding:3px 10px; border-radius:999px; background:#eef2ff; color:#374151; font-weight:600; font-size:0.85rem}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header aria-label="Hero">
+      <div class="grid">
+        <div>
+          <p class="pill">Honeymoon Fund</p>
+          <h1 class="hero-title">Help <strong>Skyler &amp; Natasha</strong> make our dream honeymoon real 🧡</h1>
+          <p class="sub">Instead of traditional gifts, you can fund specific experiences—flights, stays, a cooking class, a coastal boat ride, and more. Every gift goes directly to the trip.</p>
+          <div class="card" style="margin-top:16px">
+            <div class="stat">
+              <div>
+                <strong>Total Goal:</strong> $7,200
+                <br><span class="small">Target dates: MARCH — APRIL 2026 (adjust)</span>
+              </div>
+              <div style="text-align:right">
+                <strong>Raised:</strong> <span id="raised">$0</span>
+              </div>
+            </div>
+            <div class="progress" style="margin-top:10px" aria-label="Funding progress">
+              <div id="bar"></div>
+            </div>
+            <p class="small" style="margin-top:8px">Want to leave a note? Add it in Venmo/PayPal or our form.</p>
+          </div>
+          <div class="cta-row" style="margin-top:12px">
+            <a class="btn" href="https://venmo.com/USERNAME" target="_blank" rel="noopener">Give via Venmo</a>
+            <a class="btn alt" href="#experiences">Choose an experience</a>
+          </div>
+        </div>
+        <div>
+          <img class="hero" src="YOUR-HERO-PHOTO.jpg" alt="Skyler & Natasha celebrating by the sea">
+        </div>
+      </div>
+    </header>
+
+    <main style="display:grid; gap:22px; margin-top:22px">
+      <!-- Experiences -->
+      <section id="experiences" class="card" aria-labelledby="ex-heading">
+        <h2 id="ex-heading" style="margin-top:0">Choose an experience to fund</h2>
+        <div class="grid-3">
+          <article class="tile" aria-label="Flights">
+            <h4>✈️ Flights to Europe</h4>
+            <p class="small">Roundtrip airfare for two</p>
+            <p class="price">$1,200</p>
+            <div class="cta-row">
+              <a class="btn" href="https://venmo.com/USERNAME?txn=pay&note=Honeymoon%20Flights&amount=50" target="_blank" rel="noopener">Give $50</a>
+              <a class="btn" href="https://venmo.com/USERNAME?txn=pay&note=Honeymoon%20Flights&amount=100" target="_blank" rel="noopener">Give $100</a>
+            </div>
+          </article>
+
+          <article class="tile" aria-label="Lodging">
+            <h4>🏨 Stays & Airbnbs (21 nights)</h4>
+            <p class="small">Cozy rooms near the sights</p>
+            <p class="price">$3,600</p>
+            <div class="cta-row">
+              <a class="btn" href="https://venmo.com/USERNAME?txn=pay&note=Lodging&amount=100" target="_blank" rel="noopener">Give $100</a>
+              <a class="btn" href="https://venmo.com/USERNAME?txn=pay&note=Lodging&amount=250" target="_blank" rel="noopener">Give $250</a>
+            </div>
+          </article>
+
+          <article class="tile" aria-label="Trains">
+            <h4>🚄 Trains Between Cities</h4>
+            <p class="small">Fast, scenic connections</p>
+            <p class="price">$300</p>
+            <div class="cta-row">
+              <a class="btn" href="https://venmo.com/USERNAME?txn=pay&note=Trains&amount=25" target="_blank" rel="noopener">Give $25</a>
+              <a class="btn" href="https://venmo.com/USERNAME?txn=pay&note=Trains&amount=50" target="_blank" rel="noopener">Give $50</a>
+            </div>
+          </article>
+
+          <article class="tile" aria-label="Romantic dinners">
+            <h4>🍝 Romantic Dinners</h4>
+            <p class="small">Three special nights out</p>
+            <p class="price">$600</p>
+            <div class="cta-row">
+              <a class="btn" href="https://venmo.com/USERNAME?txn=pay&note=Dinners&amount=50" target="_blank" rel="noopener">Give $50</a>
+              <a class="btn" href="https://venmo.com/USERNAME?txn=pay&note=Dinners&amount=100" target="_blank" rel="noopener">Give $100</a>
+            </div>
+          </article>
+
+          <article class="tile" aria-label="Vineyard tasting">
+            <h4>🍷 Vineyard Tasting</h4>
+            <p class="small">Tour + tasting for two</p>
+            <p class="price">$200</p>
+            <div class="cta-row">
+              <a class="btn" href="https://venmo.com/USERNAME?txn=pay&note=Vineyard%20Tasting&amount=25" target="_blank" rel="noopener">Give $25</a>
+              <a class="btn" href="https://venmo.com/USERNAME?txn=pay&note=Vineyard%20Tasting&amount=50" target="_blank" rel="noopener">Give $50</a>
+            </div>
+          </article>
+
+          <article class="tile" aria-label="Boat trip">
+            <h4>🛥️ Cinque Terre Boat Ride</h4>
+            <p class="small">Coastline cruise at sunset</p>
+            <p class="price">$250</p>
+            <div class="cta-row">
+              <a class="btn" href="https://venmo.com/USERNAME?txn=pay&note=Boat%20Ride&amount=25" target="_blank" rel="noopener">Give $25</a>
+              <a class="btn" href="https://venmo.com/USERNAME?txn=pay&note=Boat%20Ride&amount=75" target="_blank" rel="noopener">Give $75</a>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- What donations pay for -->
+      <section class="card" aria-labelledby="breakdown">
+        <h2 id="breakdown" style="margin-top:0">Where your gift goes</h2>
+        <div class="list">
+          <div class="ring">💳 <strong>Direct to us:</strong> Gifts go straight to our travel budget. We’ll share photos & a thank-you note after the trip!</div>
+          <div class="ring">🔒 <strong>Secure payment:</strong> Venmo/PayPal (or a registry link) handles the transaction—no card data lives on this page.</div>
+          <div class="ring">🧾 <strong>Transparent costs:</strong> Flights $1,200 • Lodging $3,600 • Trains $300 • Dinners $600 • Experiences $850 • Local transit $300 • Treats $350</div>
+        </div>
+      </section>
+
+      <!-- Registry / Alt payment -->
+      <section class="card">
+        <h2 style="margin-top:0">Prefer a registry?</h2>
+        <p class="note">You can also contribute through our registry: <a href="https://YOUR-REGISTRY-LINK" target="_blank" rel="noopener">Open our registry</a>.</p>
+      </section>
+
+      <!-- FAQ -->
+      <section class="card">
+        <h2 style="margin-top:0">FAQ</h2>
+        <details>
+          <summary>Can I fund a specific item?</summary>
+          <p>Yes! Use the buttons above or add a note (e.g., “for the boat ride”). We’ll allocate it accordingly.</p>
+        </details>
+        <details>
+          <summary>Will you share updates?</summary>
+          <p>We’ll send a post-trip thank-you with photos and highlights of funded experiences.</p>
+        </details>
+        <details>
+          <summary>Is my gift tax-deductible?</summary>
+          <p>No—this is a personal gift to us, not a charity.</p>
+        </details>
+      </section>
+    </main>
+
+    <footer>
+      Made with 💛 by Skyler &amp; Natasha • © <span id="year"></span>
+    </footer>
+  </div>
+
+  <script>
+    // Basic progress logic—update these two numbers:
+    const goal = 7200;            // match the “Total Goal” above
+    const raised = 0;             // update as you receive gifts (manual or wire to a Google Sheet/API later)
+    // Render:
+    document.getElementById('raised').textContent = `$${raised.toLocaleString()}`;
+    const pct = Math.min(100, Math.round((raised/goal)*100));
+    document.getElementById('bar').style.width = pct + '%';
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
