@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Feed the Cat Game 🐱</title>
+  <link rel="stylesheet" href="style.css"> <!-- if you have a shared stylesheet -->
+  <style>
+    body { font-family: system-ui, sans-serif; background:#f7f7fb; margin:0; }
+    .wrap{max-width:1000px; margin:0 auto; padding:24px}
+    header{padding:20px 0}
+    h1{font-size:2rem; margin:0 0 16px}
+    .btn{
+      display:inline-block; text-decoration:none; background:#2563eb; color:white;
+      padding:10px 14px; border-radius:10px; font-weight:600;
+      box-shadow:0 6px 16px rgba(37,99,235,.25)
+    }
+    .card{background:white; border-radius:14px; padding:20px; box-shadow:0 10px 25px rgba(0,0,0,0.08)}
+    #gameCanvas{width:100%; max-width:100%; border-radius:12px;
+      background:#fdfcf7; border:1px solid #eee; box-shadow:0 6px 16px rgba(0,0,0,.06)}
+    .ring{border:1px dashed #cdd8ff; border-radius:12px; padding:14px; background:#e5edff; margin-top:12px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <a href="index.html" class="btn">⬅ Back to Honeymoon Fund</a>
+      <h1>Feed the Cat Game 🐱</h1>
+      <p>Throw food to Jack, avoid the chihuahua, and see how chonky he gets in 30 seconds!</p>
+    </header>
+
+    <div class="card">
+      <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap">
+        <button id="startGame" class="btn" type="button">Start Game</button>
+        <span><strong>Score:</strong> <span id="score">0</span></span>
+        <span><strong>Time:</strong> <span id="timer">30</span>s</span>
+      </div>
+      <canvas id="gameCanvas" width="900" height="400"></canvas>
+      <div id="gameMsg" class="ring" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- Game logic (white/grey cat, mouth animation, chihuahua) -->
+  <script>
+(() => {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const startBtn = document.getElementById('startGame');
+  const scoreEl = document.getElementById('score');
+  const timerEl = document.getElementById('timer');
+  const msgEl = document.getElementById('gameMsg');
+
+  // Responsive canvas
+  let scale = 1;
+  function fitCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width  = Math.round(rect.width * ratio);
+    canvas.height = Math.round((rect.width * 0.45) * ratio);
+    canvas.style.height = Math.round(canvas.height / ratio) + 'px';
+    scale = ratio;
+  }
+  fitCanvas();
+  window.addEventListener('resize', fitCanvas);
+
+  // Game state
+  let playing = false;
+  let foods = [];
+  let score = 0;
+  let timeLeft = 30;
+  let lastTime = 0;
+  let rafId = 0;
+
+  // Cat (Jack)
+  const cat = {
+    x: () => canvas.width * 0.78,
+    y: () => canvas.height * 0.62,
+    baseR: () => Math.min(canvas.width, canvas.height) * 0.085,
+    rGrow: 0,
+    mouthOpen: 0,            // 0..1
+    mouthPulseT: 0,          // for idle open/close
+    catchFlash: 0            // quick flash on catch
+  };
+
+  // Chihuahua obstacle
+  const dog = {
+    active: false,
+    x: 0,
+    yBase: () => canvas.height * 0.70,
+    r: () => Math.min(canvas.width, canvas.height) * 0.05,
+    dir: 1,         // 1 -> left-to-right, -1 -> right-to-left
+    speed: 0,       // px/ms
+    t0: 0,          // start time for jump
+    period: 2000,   // ms per hop cycle
+    spawnCooldown: 2500, // ms between runs
+    lastEndedAt: 0
+  };
+
+  function spawnDog(now) {
+    dog.active = true;
+    dog.dir = Math.random() < 0.5 ? 1 : -1;
+    dog.x = dog.dir === 1 ? -dog.r()*2 : canvas.width + dog.r()*2;
+    dog.speed = (canvas.width / 2500) * (1 + Math.random()*0.5); // tuned by width
+    dog.t0 = now;
+  }
+
+  // Food generator
+  function spawnFood(fromX, fromY) {
+    const targetX = cat.x();
+    const targetY = cat.y();
+    const ang = Math.atan2(targetY - fromY, targetX - fromX);
+    const speed = Math.max(canvas.width, canvas.height) * 0.0075;
+    const vx = Math.cos(ang) * speed;
+    const vy = Math.sin(ang) * speed;
+    foods.push({
+      x: fromX, y: fromY, vx, vy,
+      r: Math.max(5 * scale, Math.min(canvas.width, canvas.height) * 0.012),
+      life: 4000, born: performance.now()
+    });
+  }
+
+  // Input
+  function getCanvasCoords(evt) {
+    const rect = canvas.getBoundingClientRect();
+    let clientX, clientY;
+    if (evt.touches && evt.touches[0]) {
+      clientX = evt.touches[0].clientX;
+      clientY = evt.touches[0].clientY;
+    } else { clientX = evt.clientX; clientY = evt.clientY; }
+    const x = (clientX - rect.left) * (canvas.width / rect.width);
+    const y = (clientY - rect.top) * (canvas.height / rect.height);
+    return { x, y };
+  }
+  function onTap(e) {
+    if (!playing) return;
+    spawnFood(...Object.values(getCanvasCoords(e)));
+    e.preventDefault();
+  }
+  canvas.addEventListener('mousedown', onTap, { passive:false });
+  canvas.addEventListener('touchstart', onTap, { passive:false });
+
+  function resetGame() {
+    foods = [];
+    score = 0;
+    timeLeft = 30;
+    lastTime = 0;
+    cat.rGrow = 0;
+    cat.mouthOpen = 0;
+    cat.catchFlash = 0;
+    dog.active = false;
+    dog.lastEndedAt = 0;
+    scoreEl.textContent = '0';
+    timerEl.textContent = '30';
+    msgEl.style.display = 'none';
+  }
+
+  // --- Drawing helpers -------------------------------------------------------
+  function drawCat() {
+    const r = cat.baseR() + cat.rGrow;
+
+    // idle mouth animation (open/close)
+    cat.mouthPulseT += 0.05;
+    const idleOpen = (Math.sin(cat.mouthPulseT) * 0.5 + 0.5) * 0.25; // 0..0.25
+    cat.mouthOpen = Math.max(cat.mouthOpen * 0.88, idleOpen); // decay catch-open toward idle
+
+    // Body (white with light gray saddle)
+    ctx.save();
+    // subtle catch flash
+    if (cat.catchFlash > 0) {
+      ctx.globalAlpha = 0.8 + 0.2*Math.sin(cat.catchFlash*20);
+      cat.catchFlash -= 0.06;
+    }
+    // body ellipse (white)
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.ellipse(cat.x(), cat.y(), r * 1.18, r, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // gray saddle patch
+    ctx.fillStyle = '#9ca3af';
+    ctx.beginPath();
+    ctx.ellipse(cat.x() + r*0.15, cat.y() - r*0.05, r*0.9, r*0.55, 0.15, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Head (white with gray top)
+    const hx = cat.x() - r * 0.92;
+    const hy = cat.y() - r * 0.30;
+    const hr = r * 0.58;
+
+    // head base white
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(hx, hy, hr, 0, Math.PI*2);
+    ctx.fill();
+
+    // gray top/ears mask
+    ctx.fillStyle = '#9ca3af';
+    ctx.beginPath(); // cap/top patch
+    ctx.arc(hx, hy - hr*0.15, hr*0.95, Math.PI*1.0, Math.PI*2.0);
+    ctx.lineTo(hx + hr*0.95, hy);
+    ctx.arc(hx, hy, hr, 0, Math.PI, true);
+    ctx.closePath();
+    ctx.fill();
+
+    // Ears (gray)
+    const earR = hr * 0.6;
+    const e1x = hx - earR * 0.6, e1y = hy - earR * 0.7;
+    const e2x = hx + earR * 0.6, e2y = hy - earR * 0.7;
+    ctx.fillStyle = '#9ca3af';
+    ctx.beginPath();
+    ctx.moveTo(e1x, e1y);
+    ctx.lineTo(e1x - earR * 0.5, e1y - earR * 0.7);
+    ctx.lineTo(e1x + earR * 0.2, e1y - earR * 0.2);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(e2x, e2y);
+    ctx.lineTo(e2x + earR * 0.5, e2y - earR * 0.7);
+    ctx.lineTo(e2x - earR * 0.2, e2y - earR * 0.2);
+    ctx.closePath(); ctx.fill();
+
+    // Eyes
+    ctx.fillStyle = '#111827';
+    const eyeOffY = hr * 0.12, eyeOffX = hr * 0.22;
+    ctx.beginPath();
+    ctx.arc(hx - eyeOffX, hy - eyeOffY, hr * 0.09, 0, Math.PI*2);
+    ctx.arc(hx + eyeOffX, hy - eyeOffY, hr * 0.09, 0, Math.PI*2);
+    ctx.fill();
+
+    // Nose
+    ctx.fillStyle = '#d97706';
+    ctx.beginPath();
+    ctx.arc(hx, hy + hr * 0.05, hr * 0.07, 0, Math.PI*2);
+    ctx.fill();
+
+    // Mouth (animated open/close)
+    const mouthW = hr * 0.38;
+    const mouthH = hr * (0.10 + 0.20 * cat.mouthOpen); // taller when open
+    const my = hy + hr * 0.20;
+    ctx.fillStyle = '#7f1d1d';
+    ctx.beginPath();
+    ctx.ellipse(hx, my, mouthW, mouthH, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // Whiskers
+    ctx.strokeStyle = '#111827';
+    ctx.lineWidth = Math.max(1.2 * scale, hr * 0.04);
+    const wy = hy + hr * 0.05;
+    [[-1, -0.18], [-1, 0.02], [-1, 0.22], [1, -0.18], [1, 0.02], [1, 0.22]].forEach(([side, off])=>{
+      ctx.beginPath();
+      ctx.moveTo(hx + side * hr * 0.12, wy + hr * off);
+      ctx.lineTo(hx + side * hr * 0.6,  wy + hr * off);
+      ctx.stroke();
+    });
+
+    // Tail (fluffy, gray tip)
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#e5e7eb'; // light body fur
+    ctx.lineWidth = r * 0.23;
+    ctx.beginPath();
+    ctx.moveTo(cat.x() + r * 1.1, cat.y() - r * 0.2);
+    ctx.quadraticCurveTo(cat.x() + r * 1.6, cat.y() - r * 0.9, cat.x() + r * 1.0, cat.y() - r * 1.2);
+    ctx.stroke();
+    // tip overlay gray
+    ctx.strokeStyle = '#9ca3af';
+    ctx.lineWidth = r * 0.18;
+    ctx.beginPath();
+    ctx.moveTo(cat.x() + r * 1.2, cat.y() - r * 0.75);
+    ctx.quadraticCurveTo(cat.x() + r * 1.35, cat.y() - r * 1.0, cat.x() + r * 1.0, cat.y() - r * 1.2);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function drawFood(f) {
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    ctx.fillStyle = '#b45309';
+    ctx.beginPath();
+    ctx.arc(0, 0, f.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.beginPath();
+    ctx.arc(-f.r*0.3, -f.r*0.3, f.r*0.35, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawDog(now) {
+    if (!dog.active) return;
+    // hopping Y offset (cute bounce)
+    const t = (now - dog.t0) % dog.period;
+    const phase = (t / dog.period) * Math.PI * 2;
+    const hop = Math.sin(phase) ** 2; // 0..1
+    const y = dog.yBase() - hop * dog.r()*0.9;
+
+    // body
+    ctx.save();
+    ctx.translate(dog.x, y);
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    ctx.beginPath();
+    ctx.ellipse(0, dog.r()*0.8, dog.r()*0.9, dog.r()*0.25, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // main body (tan)
+    ctx.fillStyle = '#d6a270';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, dog.r()*1.1, dog.r()*0.75, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // head
+    ctx.beginPath();
+    ctx.ellipse(-dog.r()*0.9*dog.dir, -dog.r()*0.25, dog.r()*0.55, dog.r()*0.45, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // ears (pointy)
+    ctx.beginPath();
+    const hx = -dog.r()*0.9*dog.dir, hy = -dog.r()*0.75;
+    ctx.moveTo(hx, hy);
+    ctx.lineTo(hx + dog.dir*dog.r()*0.35, hy - dog.r()*0.35);
+    ctx.lineTo(hx + dog.dir*dog.r()*0.15, hy + dog.r()*0.05);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(hx - dog.dir*dog.r()*0.1, hy + dog.r()*0.05);
+    ctx.lineTo(hx - dog.dir*dog.r()*0.35, hy - dog.r()*0.25);
+    ctx.lineTo(hx - dog.dir*dog.r()*0.05, hy + dog.r()*0.15);
+    ctx.closePath(); ctx.fill();
+
+    // face details
+    ctx.fillStyle = '#111827';
+    ctx.beginPath();
+    ctx.arc(-dog.r()*0.95*dog.dir, -dog.r()*0.25, dog.r()*0.06, 0, Math.PI*2); // eye
+    ctx.fill();
+
+    // legs (little dashes)
+    ctx.strokeStyle = '#b0794e';
+    ctx.lineWidth = dog.r()*0.15;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(dog.r()*0.2, dog.r()*0.4);
+    ctx.lineTo(dog.r()*0.45, dog.r()*0.7);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-dog.r()*0.2, dog.r()*0.4);
+    ctx.lineTo(-dog.r()*0.45, dog.r()*0.7);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // --- Collision helpers -----------------------------------------------------
+  function collideWithCat(f) {
+    const dx = f.x - cat.x();
+    const dy = f.y - cat.y();
+    const dist = Math.hypot(dx, dy);
+    return dist < (cat.baseR() + cat.rGrow) * 0.9;
+  }
+  function collideWithDog(f) {
+    if (!dog.active) return false;
+    // rough ellipse hitbox around dog
+    const y = dog.yBase(); // use base for box; generous bounds
+    const a = dog.r()*1.1, b = dog.r()*0.9; // ellipse radii
+    const dx = (f.x - dog.x) / a;
+    const dy = (f.y - (y - dog.r()*0.2)) / b;
+    return (dx*dx + dy*dy) < 1.0;
+  }
+
+  function endGame() {
+    playing = false;
+    cancelAnimationFrame(rafId);
+    const safeScore = Math.max(0, score);
+    msgEl.style.display = 'block';
+    msgEl.innerHTML = `🎉 Time! Final score: <strong>${safeScore}</strong><br>
+      <a href="https://venmo.com/USERNAME?txn=pay&note=Fed%20the%20Cat%20(${encodeURIComponent(safeScore+' pts')})&amount=5" target="_blank" rel="noopener">Tip $5</a> or
+      <a href="#experiences">fund an experience</a>.`;
+  }
+
+  // --- Main loop -------------------------------------------------------------
+  function tick(ts) {
+    if (!lastTime) lastTime = ts;
+    const dt = ts - lastTime; // ms
+    lastTime = ts;
+
+    // timer
+    timeLeft -= dt / 1000;
+    timerEl.textContent = Math.max(0, Math.ceil(timeLeft)).toString();
+    if (timeLeft <= 0) return endGame();
+
+    // maybe spawn dog
+    const now = performance.now();
+    if (!dog.active && now - dog.lastEndedAt > dog.spawnCooldown) {
+      spawnDog(now);
+    }
+
+    // update dog
+    if (dog.active) {
+      dog.x += dog.dir * dog.speed * dt;
+      const off = dog.r()*2;
+      if ((dog.dir === 1 && dog.x > canvas.width + off) ||
+          (dog.dir === -1 && dog.x < -off)) {
+        dog.active = false;
+        dog.lastEndedAt = now;
+      }
+    }
+
+    // update foods
+    foods.forEach(f => { f.x += f.vx; f.y += f.vy; });
+
+    // collisions & culling
+    for (let i = foods.length - 1; i >= 0; i--) {
+      const f = foods[i];
+      // Chihuahua hit: remove food and penalize
+      if (collideWithDog(f)) {
+        foods.splice(i, 1);
+        score = Math.max(0, score - 1);
+        scoreEl.textContent = score.toString();
+        continue;
+      }
+      // Cat hit: score++
+      if (collideWithCat(f)) {
+        foods.splice(i, 1);
+        score++;
+        scoreEl.textContent = score.toString();
+        cat.rGrow = Math.min(cat.baseR() * 0.6, cat.rGrow + Math.max(1.5 * scale, canvas.width * 0.003));
+        cat.mouthOpen = 1.0;     // pop mouth wide for a moment
+        cat.catchFlash = 0.5;    // little flash
+        continue;
+      }
+      // life / bounds
+      if (now - f.born > f.life ||
+          f.x < -60*scale || f.x > canvas.width + 60*scale ||
+          f.y < -60*scale || f.y > canvas.height + 60*scale) {
+        foods.splice(i, 1);
+      }
+    }
+
+    // gentle shrink toward base
+    if (cat.rGrow > 0) cat.rGrow = Math.max(0, cat.rGrow - dt * 0.02);
+
+    // Draw
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // background floor
+    ctx.fillStyle = '#f3efe5';
+    ctx.fillRect(0, canvas.height * 0.7, canvas.width, canvas.height * 0.3);
+
+    // dog (behind cat to keep cat foreground)
+    drawDog(performance.now());
+
+    // cat and foods
+    drawCat();
+    foods.forEach(drawFood);
+
+    rafId = requestAnimationFrame(tick);
+  }
+
+  startBtn.addEventListener('click', () => {
+    if (playing) return;
+    resetGame();
+    playing = true;
+    lastTime = 0;
+    rafId = requestAnimationFrame(tick);
+  });
+})();
+</script>
+
+</body>
+</html>
